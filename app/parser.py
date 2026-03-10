@@ -1,10 +1,10 @@
 __all__ = ["Parser"]
 
 import json
+import logging
 import shutil
 from pathlib import Path
 from timeit import default_timer as timestamp
-# from time import perf_counter_ns as timestamp
 
 from app.models import Artist, Entry, Row, row_to_entry
 from app.writers import Writer
@@ -29,9 +29,14 @@ class Parser:
         self.writers.append(writer)
 
     def add_writers(self, writers: list[Writer]) -> None:
+        for writer in writers:
+            logging.info(f'Adding writer "{writer.name}"')
+
         self.writers.extend(writers)
 
     def add_source_folder(self, name: str) -> None:
+        logging.info(f'Adding source folder "{name}"')
+
         source_dir = Path(name)
         self.sources = [
             str(sub.absolute())
@@ -40,8 +45,9 @@ class Parser:
         ]
 
     def parse_source(self, name: str) -> None:
+        logging.info(f'Processing "{name}"')
         print(
-            f"[{self.current}/{len(self.sources)}] Parsing {name}".ljust(
+            f"[{self.current}/{len(self.sources)}] Processing {name}".ljust(
                 self.min_width, " "
             ),
             end="\r",
@@ -63,11 +69,14 @@ class Parser:
 
         self.current += 1
 
+        logging.info(f'Completed processing "{name}"')
+
     def parse(self) -> None:
+        logging.info("Beginning processing")
         start = timestamp()
         for source in self.sources:
             self.parse_source(source)
-
+        logging.info("Completed processing")
         print()
         end = timestamp()
 
