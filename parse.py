@@ -13,7 +13,7 @@ def term_width() -> int:
     return shutil.get_terminal_size((100, 100)).columns
 
 
-class LogEntry(TypedDict):
+class Row(TypedDict):
     master_metadata_album_artist_name: str | None
     master_metadata_album_album_name: str | None
     master_metadata_track_name: str | None
@@ -26,16 +26,16 @@ class Entry:
     track_name: str
 
 
-def to_entry(log_entry: LogEntry) -> Entry | None:
-    artist_name = log_entry["master_metadata_album_artist_name"]
+def to_entry(row: Row) -> Entry | None:
+    artist_name = row["master_metadata_album_artist_name"]
     if artist_name is None:
         return None
 
-    album_name = log_entry["master_metadata_album_album_name"]
+    album_name = row["master_metadata_album_album_name"]
     if album_name is None:
         return None
 
-    track_name = log_entry["master_metadata_track_name"]
+    track_name = row["master_metadata_track_name"]
     if track_name is None:
         return None
 
@@ -107,9 +107,9 @@ class Parser:
         src = Path(fp).read_text()
         obj = list(json.loads(src))
 
-        log: LogEntry
-        for log in obj:
-            entry = to_entry(log)
+        row: Row
+        for row in obj:
+            entry = to_entry(row)
             if entry is None:
                 continue
 
