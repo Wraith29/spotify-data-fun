@@ -1,5 +1,6 @@
 import json
 import shutil
+from abc import ABC
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TypedDict
@@ -65,11 +66,23 @@ class Artist:
         self.albums[entry.album_name] = album
 
 
+class Writer(ABC):
+    __slots__ = "name"
+    name: str
+
+    def get_outpath(self) -> Path:
+        return Path(f"out/{self.name}.json")
+
+    def write(self, data: dict[str, Artist]) -> None:
+        pass
+
+
 class Parser:
     files_to_parse: list[str]
     min_width: int
     current: int
     data: dict[str, Artist] = {}
+    writers: list[Writer] = []
 
     def __init__(self) -> None:
         self.files_to_parse = [
@@ -80,7 +93,10 @@ class Parser:
         self.current = 1
         self.min_width = term_width()
 
-    def load_dataset(self, fp: str) -> None:
+    def add_writer(self, writer: Writer) -> None:
+        self.writers.append(writer)
+
+    def add_source(self, fp: str) -> None:
         print(
             f"[{self.current}/{len(self.files_to_parse)}] Parsing {fp}".ljust(
                 self.min_width, " "
@@ -103,29 +119,45 @@ class Parser:
 
         self.current += 1
 
-    def save(self) -> None:
+    def write_all(self) -> None:
+        current = 1
+        total = len(self.writers)
+
+        for writer in self.writers:
+            print(
+                f"[{current}/{total}] Executing writer ({writer.name})".ljust(
+                    self.min_width, " "
+                ),
+                end="\r",
+            )
+            writer.write(self.data)
+
+
+class DumpWriter(Writer):
+    def __init__(self) -> None:
+        self.name = "dump"
+
+    def write(self, data: dict[str, Artist]) -> None:
         Path("out").mkdir(exist_ok=True)
 
         output = OrderedDict(
             map(
                 lambda kvp: (kvp[0], asdict(kvp[1])),
                 sorted(
-                    self.data.items(),
+                    data.items(),
                     key=lambda kvp: kvp[1].total_listens,
                     reverse=True,
                 ),
             )
         )
 
-        outfile = Path("out/data.json")
+        outfile = self.get_outpath()
         outfile.write_text(
             json.dumps(
                 output,
                 indent=4,
             )
         )
-
-        print(f"Data written to {outfile.absolute()}")
 
 
 def main() -> int:
@@ -134,12 +166,13 @@ def main() -> int:
         return 1
 
     parser = Parser()
+    parser.add_writer(DumpWriter())
 
     for file in parser.files_to_parse:
-        parser.load_dataset(file)
+        parser.add_source(file)
     print()
 
-    parser.save()
+    parser.write_all()
 
     return 0
 
