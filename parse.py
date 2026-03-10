@@ -4,6 +4,7 @@ import time
 from abc import ABC
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
+from operator import itemgetter
 from pathlib import Path
 from typing import TypedDict
 
@@ -178,7 +179,7 @@ class TopAlbumsWriter(Writer):
                 album_data[album_name] = album.total_listens
 
         output = OrderedDict(
-            sorted(album_data.items(), key=lambda kvp: kvp[1], reverse=True)
+            sorted(album_data.items(), key=itemgetter(1), reverse=True)
         )
 
         outfile = self.get_outpath()
