@@ -1,10 +1,11 @@
 import json
 import shutil
+import time
 from abc import ABC
+from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TypedDict
-from collections import OrderedDict
 
 
 def term_width() -> int:
@@ -70,35 +71,33 @@ class Writer(ABC):
     __slots__ = "name"
     name: str
 
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+        Path("out").mkdir(exist_ok=True)
+
     def get_outpath(self) -> Path:
         return Path(f"out/{self.name}.json")
 
-    def write(self, data: dict[str, Artist]) -> None:
-        pass
+    def write(self, data: dict[str, Artist]) -> None: ...
 
 
 class Parser:
-    files_to_parse: list[str]
     min_width: int
     current: int
     data: dict[str, Artist] = {}
     writers: list[Writer] = []
 
     def __init__(self) -> None:
-        self.files_to_parse = [
-            str(sub.absolute())
-            for sub in Path("data").iterdir()
-            if sub.is_file()
-        ]
         self.current = 1
         self.min_width = term_width()
 
     def add_writer(self, writer: Writer) -> None:
         self.writers.append(writer)
 
-    def add_source(self, fp: str) -> None:
+    def add_source(self, fp: str, total: int) -> None:
         print(
-            f"[{self.current}/{len(self.files_to_parse)}] Parsing {fp}".ljust(
+            f"[{self.current}/{total}] Parsing {fp}".ljust(
                 self.min_width, " "
             ),
             end="\r",
@@ -119,6 +118,11 @@ class Parser:
 
         self.current += 1
 
+    def add_sources(self, files: list[str]) -> None:
+        for file in files:
+            self.add_source(file, len(files))
+        print()
+
     def write_all(self) -> None:
         current = 1
         total = len(self.writers)
@@ -131,15 +135,17 @@ class Parser:
                 end="\r",
             )
             writer.write(self.data)
+            current += 1
+
+            time.sleep(1)
+        print()
 
 
 class DumpWriter(Writer):
     def __init__(self) -> None:
-        self.name = "dump"
+        Writer.__init__(self, "dump")
 
     def write(self, data: dict[str, Artist]) -> None:
-        Path("out").mkdir(exist_ok=True)
-
         output = OrderedDict(
             map(
                 lambda kvp: (kvp[0], asdict(kvp[1])),
@@ -160,17 +166,39 @@ class DumpWriter(Writer):
         )
 
 
+class TopAlbumsWriter(Writer):
+    def __init__(self) -> None:
+        Writer.__init__(self, "top-albums")
+
+    def write(self, data: dict[str, Artist]) -> None:
+        album_data: dict[str, int] = {}
+
+        for artist in data.values():
+            for album_name, album in artist.albums.items():
+                album_data[album_name] = album.total_listens
+
+        output = OrderedDict(
+            sorted(album_data.items(), key=lambda kvp: kvp[1], reverse=True)
+        )
+
+        outfile = self.get_outpath()
+        outfile.write_text(json.dumps(output, indent=4))
+
+
 def main() -> int:
     if not Path("data").exists():
         print('ERROR: Missing input directory "./data"')
         return 1
 
+    files_to_parse = [
+        str(sub.absolute()) for sub in Path("data").iterdir() if sub.is_file()
+    ]
+
     parser = Parser()
     parser.add_writer(DumpWriter())
+    parser.add_writer(TopAlbumsWriter())
 
-    for file in parser.files_to_parse:
-        parser.add_source(file)
-    print()
+    parser.add_sources(files_to_parse)
 
     parser.write_all()
 
