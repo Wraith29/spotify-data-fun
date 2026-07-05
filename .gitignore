@@ -10,8 +10,8 @@ wheels/
 .venv
 
 # Data
-data/
-out/
+*data/
+*out/
 *.zip
 
 *.log

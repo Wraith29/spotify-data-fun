@@ -17,6 +17,7 @@ def term_width() -> int:
 class Parser:
     min_width: int
     current: int
+    sourcepath: str
     sources: list[str] = []
     data: dict[str, Artist] = {}
     writers: list[Writer] = []

@@ -20,23 +20,25 @@ def serialize_datetime(obj: datetime) -> str:
 
 
 class Writer(ABC):
-    __slots__ = "name"
+    __slots__ = "name", "outpath"
     name: str
+    outpath: str
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, outpath: str) -> None:
         self.name = name
+        self.outpath = outpath
 
-        Path("out").mkdir(exist_ok=True)
+        Path(outpath).mkdir(exist_ok=True)
 
     def get_outpath(self) -> Path:
-        return Path(f"out/{self.name}.json")
+        return Path(f"{self.outpath}/{self.name}.json")
 
     def write(self, data: dict[str, Artist]) -> None: ...
 
 
 class DumpWriter(Writer):
-    def __init__(self) -> None:
-        Writer.__init__(self, "dump")
+    def __init__(self, outpath: str) -> None:
+        Writer.__init__(self, "dump", outpath)
 
     def write(self, data: dict[str, Artist]) -> None:
         output = OrderedDict(
@@ -61,8 +63,8 @@ class DumpWriter(Writer):
 
 
 class TopArtistsWriter(Writer):
-    def __init__(self) -> None:
-        Writer.__init__(self, "top-artists")
+    def __init__(self, outpath: str) -> None:
+        Writer.__init__(self, "top-artists", outpath)
 
     def write(self, data: dict[str, Artist]) -> None:
         artist_data = OrderedDict(
@@ -84,8 +86,8 @@ class TopAlbumsWriter(Writer):
     force_merge: bool = False
     first: bool = True
 
-    def __init__(self, force_merge: bool) -> None:
-        Writer.__init__(self, "top-albums")
+    def __init__(self, force_merge: bool, outpath: str) -> None:
+        Writer.__init__(self, "top-albums", outpath)
         self.force_merge = force_merge
 
     def __get_album_mappings(self, artist: Artist) -> dict[str, list[str]]:
@@ -161,3 +163,11 @@ class TopAlbumsWriter(Writer):
 
         outfile = self.get_outpath()
         outfile.write_text(json.dumps(output, indent=4))
+
+
+class TopTracksWriter(Writer):
+    def __init__(self, outpath: str) -> None:
+        Writer.__init__(self, "top-tracks", outpath)
+
+    def write(self, data: dict[str, Artist]) -> None:
+        pass
